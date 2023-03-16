@@ -172,18 +172,20 @@ class DatasetReconMRI(Data.Dataset):
         k0 = image2kspace(im_gt)
         x_und, k_und = np_undersample(k0, und_mask)
 
-        EPS = 1e-8
-        x_und_abs = np.abs(x_und)
-        norm_min = x_und_abs.min()
-        norm_max = x_und_abs.max()
-        norm_scale = norm_max - norm_min + EPS
-        x_und = x_und / norm_scale
-        im_gt = im_gt / norm_scale
+        # EPS = 1e-8
+        # x_und_abs = np.abs(x_und)
+        # norm_min = x_und_abs.min()
+        # norm_max = x_und_abs.max()
+        # norm_scale = norm_max - norm_min + EPS
+        # x_und = x_und / norm_scale
+        # im_gt = im_gt / norm_scale
 
-        k_und = image2kspace(x_und)  # [H, W] Complex
-        k_und = complex2pseudo(k_und)  # [C=2, H, W]
+        # k_und = image2kspace(x_und)  # [H, W] Complex
+        # k_und = complex2pseudo(k_und)  # [C=2, H, W]
+        # k_und = np.abs(pseudo2complex(k_und)) #[H, W]
+        x_und = np.abs(x_und)
         return (
-            k_und.astype(np.float32),  # [C=2, H, W]
+            x_und.astype(np.float32),  # [C=2, H, W]
             und_mask.astype(np.float32),  # [H, W]
             im_gt.astype(np.float32)  # [C=2, H, W]
         )

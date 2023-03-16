@@ -101,7 +101,7 @@ def cartesian_mask(shape, acc, sample_n=10, centred=True):
 
 def np_undersample(k0, mask_centered):
     """
-    input: k0 (H, W), mask_centered (H, W)
+    input: k0 (T=20, H, W), mask_centered (T=20, H, W)
     output: x_u, k_u (20, H, W)
     """
     assert k0.shape == mask_centered.shape
@@ -149,7 +149,7 @@ class LoadMRI(Data.Dataset):
 class DatasetReconMRI(Data.Dataset):
     def __init__(self, dataset: Data.Dataset, acc=8.0, num_center_lines=10, augment_fn=None):
         """
-        :param augment_fn: perform augmentation on image data [C=2, H, W] if provided.
+        :param augment_fn: perform augmentation on image data [T=20, H, W] if provided.
         """
         self.dataset = dataset
 
@@ -166,28 +166,29 @@ class DatasetReconMRI(Data.Dataset):
 
         if self.augment_fn:
             im_gt = self.augment_fn(im_gt)  # [2, Nxy, Nxy] float32
-        C, H, W = im_gt.shape
-        und_mask = cartesian_mask(shape=(1, C, H, W), acc=self.acc, sample_n=self.num_center_lines, centred=True
-                                  ).astype(np.float32)[0, :, :, :]  # [C, H, W]
+        T, H, W = im_gt.shape
+        und_mask = cartesian_mask(shape=(1, T, H, W), acc=self.acc, sample_n=self.num_center_lines, centred=True
+                                  ).astype(np.float32)[0, :, :, :]  # [T, H, W]
         k0 = image2kspace(im_gt)
         x_und, k_und = np_undersample(k0, und_mask)
 
-        # EPS = 1e-8
-        # x_und_abs = np.abs(x_und)
-        # norm_min = x_und_abs.min()
-        # norm_max = x_und_abs.max()
-        # norm_scale = norm_max - norm_min + EPS
-        # x_und = x_und / norm_scale
-        # im_gt = im_gt / norm_scale
+        EPS = 1e-8
+        x_und_abs = np.abs(x_und)
+        norm_min = x_und_abs.min()
+        norm_max = x_und_abs.max()
+        norm_scale = norm_max - norm_min + EPS
+        x_und = x_und / norm_scale
+        im_gt = im_gt / norm_scale
 
-        # k_und = image2kspace(x_und)  # [H, W] Complex
-        # k_und = complex2pseudo(k_und)  # [C=2, H, W]
-        # k_und = np.abs(pseudo2complex(k_und)) #[H, W]
-        x_und = np.abs(x_und)
+        im_gt = im_gt.astype(np.complex64)
+        im_gt = complex2pseudo(im_gt)
+        x_und = complex2pseudo(x_und)
+        
+        
         return (
-            x_und.astype(np.float32),  # [C=2, H, W]
-            und_mask.astype(np.float32),  # [H, W]
-            im_gt.astype(np.float32)  # [C=2, H, W]
+            x_und.astype(np.float32),  # [C=2, T, H, W]
+            und_mask.astype(np.float32),  # [T, H, W]
+            im_gt.astype(np.float32)  # [C=2, T, H, W]
         )
 
     def __len__(self):
@@ -214,7 +215,8 @@ def build_loaders(dataset, train_indices, val_indices, test_indices, batch_size=
 # =============================================================================
 
 if __name__ == '__main__':
-    dataset = DatasetReconMRI('cine.npz')
+    dataset = LoadMRI("cine.npz")
+    dataset = DatasetReconMRI(dataset)
     print(len(dataset))
     k_und, und_mask, im_gt = dataset[1]
     print(f"{k_und.shape} {k_und.dtype}")

@@ -53,30 +53,30 @@ def kspace2image(x):
 
 def pseudo2real(x):
     """
-    :param x: [..., C=2, H, W]
-    :return: [..., H, W]
+    :param x: [..., C=2, T, H, W]
+    :return: [..., T, H, W]
     """
-    return (x[..., 0, :, :] ** 2 + x[..., 1, :, :] ** 2) ** 0.5
+    return (x[..., 0, :, :, :] ** 2 + x[..., 1, :, :, :] ** 2) ** 0.5
 
 
 def complex2pseudo(x):
     """
-    :param x: [..., H, W] Complex
-    :return: [...., C=2, H, W]
+    :param x: [...T, H, W] Complex
+    :return: [...., C=2, T, H, W]
     """
     if isinstance(x, np.ndarray):
-        return np.stack([x.real, x.imag], axis=-3)
+        return np.stack([x.real, x.imag], axis=-4)
     elif isinstance(x, torch.Tensor):
-        return torch.stack([x.real, x.imag], dim=-3)
+        return torch.stack([x.real, x.imag], dim=-4)
     else:
         raise RuntimeError("Unsupported type.")
 
 def pseudo2complex(x):
     """
-    :param x:  [..., C=2, H, W]
-    :return: [..., H, W] Complex
+    :param x:  [..., C=2, T, H, W]
+    :return: [..., T, H, W] Complex
     """
-    return x[..., 0, :, :] + x[..., 1, :, :] * 1j
+    return x[..., 0, :, :, :] + x[..., 1, :, :, :] * 1j
 
 # def arbitrary_dataset_split(dataset: Data.Dataset,
 #                             indices_list: Sequence[Sequence[int]]
@@ -179,6 +179,6 @@ def compute_ssim(reconstructed_im, target_im, is_minmax=False):
         target_im = minmax_normalize(target_im, eps)
     
     ssim_value = structural_similarity(target_im, reconstructed_im, \
-        gaussian_weights=True, sigma=1.5, use_sample_covariance=False)
+        gaussian_weights=True, sigma=1.5, data_range = 1, use_sample_covariance=False)
 
     return ssim_value

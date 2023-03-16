@@ -26,7 +26,7 @@ class Solver(object):
                  scheduler=None,
                  device=None):
         device = device if device is not None else \
-            ('cuda:0' if torch.cuda.is_available() else 'cpu')
+            ('cuda:1' if torch.cuda.is_available() else 'cpu')
         self.device = device
         self.recorder = recorder
         
@@ -36,14 +36,14 @@ class Solver(object):
         self.scheduler = scheduler
 
     def _step(self, batch, is_compute_metrics=True) -> dict:
-        k_und, und_mask, image_gt = batch
+        x_und, und_mask, image_gt = batch
 
-        k_und = self.to_device(k_und)  # [B, C=2, H, W]
-        und_mask = self.to_device(und_mask)  # [B, H, W]
-        image_gt = self.to_device(image_gt)  # [B, C=2, H, W]
-        B, C, H, W = k_und.shape
-
-        im_recon = self.model(k_und, und_mask)  # [B, C=2, H, W]
+        x_und = self.to_device(x_und)  # [B, C=2, T, H, W]
+        und_mask = self.to_device(und_mask)  # [B, T, H, W]
+        image_gt = self.to_device(image_gt)  # [B, C=2, T, H, W]
+        B, C, T, H, W = x_und.shape
+        
+        im_recon = self.model(x_und, und_mask)  # [B, C=2, T, H, W] we will use und_mask in cascade(maybe?
         loss = self.criterion(im_recon, image_gt)
 
         step_dict = {
@@ -53,8 +53,8 @@ class Solver(object):
 
         # ============ compute metrics
         if not self.model.training and is_compute_metrics:
-            im_recon = pseudo2real(im_recon)  # [B, H, W]
-            image_gt = pseudo2real(image_gt)  # [B, H, W]
+            im_recon = pseudo2real(im_recon)  # [B, T, H, W]
+            image_gt = pseudo2real(image_gt)  # [B, T, H, W]
             psnr_images = [compute_psnr(im_recon[i], image_gt[i], is_minmax=True).item() for i in range(B)]
             ssim_images = [compute_ssim(im_recon[i], image_gt[i], is_minmax=True).item() for i in range(B)]
             step_dict['metric_avg_PSNR'] = statistics.mean(psnr_images)
@@ -195,7 +195,7 @@ class Solver(object):
                     metrics_acc[metric_name] += value
         return metrics_acc
 
-    def visualize(self, data_loader, idx, *, dpi=100):
+    def visualize(self, data_loader, idx, time_index, *, dpi=100):
         if idx < 0 or idx > len(data_loader) * data_loader.batch_size:
             raise RuntimeError("idx is out of range.")
 
@@ -203,97 +203,48 @@ class Solver(object):
         batch_offset = idx - batch_idx * data_loader.batch_size
 
         batch = next(itertools.islice(data_loader, batch_idx, None))
-        k_und, und_mask, image_gt = batch
+        x_und, und_mask, image_gt = batch
 
-        k_und = self.to_device(k_und)  # [B, C=2, H, W]
+        x_und = self.to_device(x_und)  # [B, C=2, H, W]
         und_mask = self.to_device(und_mask)  # [B, H, W]
         image_gt = self.to_device(image_gt)  # [B, C=2, H, W]
-        B, C, H, W = k_und.shape
+        B, C, T, H, W = x_und.shape
 
         self.model.eval()
-        im_recon = self.model(k_und, und_mask)  # [B, C=2, H, W]
+        im_recon = self.model(x_und, und_mask)  # [B, C=2, H, W]
 
-        im_und = torch.abs(k_und)  # [B, H, W]
+        im_und = pseudo2real(x_und)  # [B, H, W]
         image_gt = pseudo2real(image_gt)  # [B, H, W]
         im_recon = pseudo2real(im_recon)  # [B, H, W]
+
         print(im_und.shape)
         print(image_gt.shape)
         print(im_recon.shape)
-
         im_und = self.to_numpy(im_und[batch_offset])
         image_gt = self.to_numpy(image_gt[batch_offset])
         im_recon = self.to_numpy(im_recon[batch_offset])
+        im_und = im_und[time_index]
+        image_gt = image_gt[time_index]
+        im_recon = im_recon[time_index]
+        print(im_und.shape)
+        print(image_gt.shape)
+        print(im_recon.shape)
 
         imsshow([image_gt, im_und, im_recon], 
                 titles=['Fully sampled',
                         f"Under sampled (PSNR {compute_psnr(im_und, image_gt, is_minmax=True):.2f})",
                         f"Reconstruction (PSNR {compute_psnr(im_recon, image_gt, is_minmax=True):.2f})"],
+                num_col=3,
+                dpi=dpi,
+                is_colorbar=True)
+
+        imsshow([image_gt, im_und, im_recon], 
+                titles=['Fully sampled',
+                        f"Under sampled (PSNR {compute_ssim(im_und, image_gt, is_minmax=True):.2f})",
+                        f"Reconstruction (PSNR {compute_ssim(im_recon, image_gt, is_minmax=True):.2f})"],
                 num_col=3,
                 dpi=dpi,
                 is_colorbar=True)
 
     def get_recorder(self) -> dict:
         return self.recorder
-
-
-class Lab1Solver(Solver):
-    def _step(self, batch, is_compute_metrics=True) -> dict:
-        k_und, und_mask, image_gt = batch
-
-        k_und = self.to_device(k_und)  # [B, C=2, H, W]
-        und_mask = self.to_device(und_mask)  # [B, H, W]
-        image_gt = self.to_device(image_gt)  # [B, C=2, H, W]
-        B, C, H, W = k_und.shape
-
-        im_recon = self.model(k_und, und_mask)  # [B, C=2, H, W]
-        loss = self.criterion(im_recon, image_gt)
-
-        step_dict = {
-            'loss': loss,
-            'batch_size': B
-        }
-
-        # ============ compute metrics
-        if not self.model.training and is_compute_metrics:
-            im_recon = pseudo2real(im_recon)  # [B, H, W]
-            image_gt = pseudo2real(image_gt)  # [B, H, W]
-            psnr_images = [compute_psnr(im_recon[i], image_gt[i], is_minmax=True).item() for i in range(B)]
-            ssim_images = [compute_ssim(im_recon[i], image_gt[i], is_minmax=True).item() for i in range(B)]
-            step_dict['metric_avg_PSNR'] = statistics.mean(psnr_images)
-            step_dict['metric_avg_SSIM'] = statistics.mean(ssim_images)
-
-        return step_dict
-
-    def visualize(self, data_loader, idx, *, dpi=100):
-        if idx < 0 or idx > len(data_loader) * data_loader.batch_size:
-            raise RuntimeError("idx is out of range.")
-
-        batch_idx = idx // data_loader.batch_size
-        batch_offset = idx - batch_idx * data_loader.batch_size
-
-        batch = next(itertools.islice(data_loader, batch_idx, None))
-        k_und, und_mask, image_gt = batch
-
-        k_und = self.to_device(k_und)  # [B, C=2, H, W]
-        und_mask = self.to_device(und_mask)  # [B, H, W]
-        image_gt = self.to_device(image_gt)  # [B, C=2, H, W]
-        B, C, H, W = k_und.shape
-
-        self.model.eval()
-        im_recon = self.model(k_und, und_mask)  # [B, C=2, H, W]
-
-        im_und = torch.abs(kspace2image(pseudo2complex(k_und)))  # [B, H, W]
-        image_gt = pseudo2real(image_gt)  # [B, H, W]
-        im_recon = pseudo2real(im_recon)  # [B, H, W]
-
-        im_und = self.to_numpy(im_und[batch_offset])
-        image_gt = self.to_numpy(image_gt[batch_offset])
-        im_recon = self.to_numpy(im_recon[batch_offset])
-
-        imsshow([image_gt, im_und, im_recon], 
-                titles=['Fully sampled',
-                        f"Under sampled (PSNR {compute_psnr(im_und, image_gt, is_minmax=True):.2f})",
-                        f"Reconstruction (PSNR {compute_psnr(im_recon, image_gt, is_minmax=True):.2f})"],
-                num_col=3,
-                dpi=dpi,
-                is_colorbar=True)

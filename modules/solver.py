@@ -235,7 +235,8 @@ class Solver(object):
         print(image_gt.shape)
         print(im_recon.shape)
 
-        imsshow([image_gt, im_und, im_recon], 
+        imsshow([image_gt, im_und, im_recon],
+                cmap='gray',
                 titles=['Fully sampled',
                         f"Under sampled (PSNR {compute_psnr(im_und, image_gt, is_minmax=True):.2f})",
                         f"Reconstruction (PSNR {compute_psnr(im_recon, image_gt, is_minmax=True):.2f})"],
@@ -244,9 +245,10 @@ class Solver(object):
                 is_colorbar=True)
 
         imsshow([image_gt, im_und, im_recon], 
+                cmap='gray',
                 titles=['Fully sampled',
-                        f"Under sampled (PSNR {compute_ssim(im_und, image_gt, is_minmax=True):.2f})",
-                        f"Reconstruction (PSNR {compute_ssim(im_recon, image_gt, is_minmax=True):.2f})"],
+                        f"Under sampled (SSIM {compute_ssim(im_und, image_gt, is_minmax=True):.2f})",
+                        f"Reconstruction (SSIM {compute_ssim(im_recon, image_gt, is_minmax=True):.2f})"],
                 num_col=3,
                 dpi=dpi,
                 is_colorbar=True)

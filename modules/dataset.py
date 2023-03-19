@@ -104,6 +104,7 @@ def np_undersample(k0, mask_centered):
     input: k0 (T=20, H, W), mask_centered (T=20, H, W)
     output: x_u, k_u (20, H, W)
     """
+
     assert k0.shape == mask_centered.shape
 
     k0 = k0.astype(np.complex64)
@@ -149,7 +150,7 @@ class LoadMRI(Data.Dataset):
 class DatasetReconMRI(Data.Dataset):
     def __init__(self, dataset: Data.Dataset, acc=8.0, num_center_lines=10, augment_fn=None):
         """
-        :param augment_fn: perform augmentation on image data [T=20, H, W] if provided.
+        :param augment_fn: perform augmentation on image data [H, W, T=20] if provided.
         """
         self.dataset = dataset
 

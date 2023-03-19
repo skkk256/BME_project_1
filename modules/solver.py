@@ -26,7 +26,7 @@ class Solver(object):
                  scheduler=None,
                  device=None):
         device = device if device is not None else \
-            ('cuda:1' if torch.cuda.is_available() else 'cpu')
+            ('cuda:2' if torch.cuda.is_available() else 'cpu')
         self.device = device
         self.recorder = recorder
         
@@ -196,12 +196,14 @@ class Solver(object):
         return metrics_acc
 
     def visualize(self, data_loader, idx, time_index, *, dpi=100):
+        print(f"data_load: {len(data_loader)}, batch_size: {data_loader.batch_size}")
         if idx < 0 or idx > len(data_loader) * data_loader.batch_size:
             raise RuntimeError("idx is out of range.")
 
         batch_idx = idx // data_loader.batch_size
         batch_offset = idx - batch_idx * data_loader.batch_size
 
+        print(f"batch_size: {data_loader.batch_size}, batch_offset: {batch_offset}")
         batch = next(itertools.islice(data_loader, batch_idx, None))
         x_und, und_mask, image_gt = batch
 
@@ -223,6 +225,9 @@ class Solver(object):
         im_und = self.to_numpy(im_und[batch_offset])
         image_gt = self.to_numpy(image_gt[batch_offset])
         im_recon = self.to_numpy(im_recon[batch_offset])
+        print(im_und.shape)
+        print(image_gt.shape)
+        print(im_recon.shape)
         im_und = im_und[time_index]
         image_gt = image_gt[time_index]
         im_recon = im_recon[time_index]

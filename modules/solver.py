@@ -26,7 +26,7 @@ class Solver(object):
                  scheduler=None,
                  device=None):
         device = device if device is not None else \
-            ('cuda:2' if torch.cuda.is_available() else 'cpu')
+            ('cuda:3' if torch.cuda.is_available() else 'cpu')
         self.device = device
         self.recorder = recorder
         
@@ -106,18 +106,20 @@ class Solver(object):
                 # backward
                 self.optimizer.zero_grad()
                 loss.backward()
-
+                
                 # optimize
                 self.optimizer.step()
                 if self.scheduler is not None:
-                    self.scheduler.step( 1-loss.item() )
+                    self.scheduler.step()
                 # update information
                 loss_value = loss.item()
                 epoch_loss_acc += loss_value
                 epoch_size += batch_size
                 pbar_train.update(batch_size)
                 pbar_train.set_postfix(loss=loss_value / batch_size)
+                # self.scheduler.step()
 
+            print(self.optimizer.state_dict()['param_groups'][0]['lr'])
             epoch_avg_loss = epoch_loss_acc / epoch_size
             pbar_train.set_postfix(epoch_avg_loss=epoch_avg_loss)
             train_loss_epochs.append(epoch_avg_loss)
@@ -213,6 +215,7 @@ class Solver(object):
         B, C, T, H, W = x_und.shape
 
         self.model.eval()
+        print(f"testing: {x_und.shape}")
         im_recon = self.model(x_und, und_mask)  # [B, C=2, H, W]
 
         im_und = pseudo2real(x_und)  # [B, H, W]

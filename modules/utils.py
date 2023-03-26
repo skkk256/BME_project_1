@@ -40,16 +40,32 @@ def imsshow(imgs, titles=None, num_col=5, dpi=100, cmap=None, is_colorbar=False,
 # ================================
 
 def image2kspace(x):
-    x = np.fft.ifftshift(x, axes=(-2, -1))
-    x = np.fft.fft2(x)
-    x = np.fft.fftshift(x, axes=(-2, -1))
-    return x
+    if isinstance(x, np.ndarray):
+        x = np.fft.ifftshift(x, axes=(-2, -1))
+        x = np.fft.fft2(x)
+        x = np.fft.fftshift(x, axes=(-2, -1))
+        return x
+    elif isinstance(x, torch.Tensor):
+        x = torch.fft.ifftshift(x, dim=(-2, -1))
+        x = torch.fft.fft2(x)
+        x = torch.fft.fftshift(x, dim=(-2, -1))
+        return x
+    else:
+        raise RuntimeError("Unsupported type.")
 
 def kspace2image(x):
-    x = np.fft.ifftshift(x, axes=(-2, -1))
-    x = np.fft.ifft2(x)
-    x = np.fft.fftshift(x, axes=(-2, -1))
-    return x
+    if isinstance(x, np.ndarray):
+        x = np.fft.ifftshift(x, axes=(-2, -1))
+        x = np.fft.ifft2(x)
+        x = np.fft.fftshift(x, axes=(-2, -1))
+        return x
+    elif isinstance(x, torch.Tensor):
+        x = torch.fft.ifftshift(x, dim=(-2, -1))
+        x = torch.fft.ifft2(x)
+        x = torch.fft.fftshift(x, dim=(-2, -1))
+        return x
+    else:
+        raise RuntimeError("Unsupported type.")
 
 def pseudo2real(x):
     """

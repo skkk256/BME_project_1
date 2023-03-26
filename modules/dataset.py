@@ -148,7 +148,7 @@ class LoadMRI(Data.Dataset):
 
 
 class DatasetReconMRI(Data.Dataset):
-    def __init__(self, dataset: Data.Dataset, acc=8.0, num_center_lines=10, augment_fn=None):
+    def __init__(self, dataset: Data.Dataset, acc=8.0, num_center_lines=12, augment_fn=None):
         """
         :param augment_fn: perform augmentation on image data [H, W, T=20] if provided.
         """
@@ -173,13 +173,13 @@ class DatasetReconMRI(Data.Dataset):
         k0 = image2kspace(im_gt)
         x_und, k_und = np_undersample(k0, und_mask)
 
-        EPS = 1e-8
-        x_und_abs = np.abs(x_und)
-        norm_min = x_und_abs.min()
-        norm_max = x_und_abs.max()
-        norm_scale = norm_max - norm_min + EPS
-        x_und = x_und / norm_scale
-        im_gt = im_gt / norm_scale
+        # EPS = 1e-8
+        # x_und_abs = np.abs(x_und)
+        # norm_min = x_und_abs.min()
+        # norm_max = x_und_abs.max()
+        # norm_scale = norm_max - norm_min + EPS
+        # x_und = x_und / norm_scale
+        # im_gt = im_gt / norm_scale
 
         im_gt = im_gt.astype(np.complex64)
         im_gt = complex2pseudo(im_gt)
@@ -195,15 +195,15 @@ class DatasetReconMRI(Data.Dataset):
     def __len__(self):
         return self.n_slices
 
-def build_loaders(dataset, train_indices, val_indices, test_indices, batch_size=10, train_augment_fn=None, num_workers=4):
+def build_loaders(dataset, train_indices, val_indices, test_indices, acc = 8, num_center_lines = 12, batch_size=10, train_augment_fn=None, num_workers=4):
     train_subset, val_subset, test_subset = arbitrary_dataset_split(
         dataset=dataset, indices_list=[
             train_indices, val_indices, test_indices]
     )
 
-    train_dataset = DatasetReconMRI(train_subset, augment_fn=train_augment_fn)
-    val_dataset = DatasetReconMRI(val_subset)
-    test_dataset = DatasetReconMRI(test_subset)
+    train_dataset = DatasetReconMRI(train_subset, acc, num_center_lines, augment_fn=train_augment_fn)
+    val_dataset = DatasetReconMRI(val_subset, acc, num_center_lines)
+    test_dataset = DatasetReconMRI(test_subset, acc, num_center_lines)
 
     train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=batch_size, num_workers=num_workers)
     val_loader = torch.utils.data.DataLoader(val_dataset,batch_size=batch_size,num_workers=num_workers)
